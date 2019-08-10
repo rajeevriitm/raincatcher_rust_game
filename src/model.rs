@@ -1,9 +1,9 @@
 use wasm_bindgen::JsCast;
 use web_sys::{CanvasRenderingContext2d, HtmlCanvasElement};
 use Color::*;
-const BUCKET_HEIGHT: i32 = 15;
-const BUCKET_WIDTH: i32 = 10;
-const BUCKET_SLAND: i32 = 5;
+const BUCKET_HEIGHT: f64 = 15.0;
+const BUCKET_WIDTH: f64 = 10.0;
+const BUCKET_SLAND: f64 = 5.0;
 #[derive(Debug)]
 enum Color {
     Black,
@@ -23,8 +23,8 @@ impl Color {
 #[derive(Debug)]
 pub struct World {
     canvas: HtmlCanvasElement,
-    height: i32,
-    width: i32,
+    height: f64,
+    width: f64,
 }
 impl World {
     pub fn new(selector: &str) -> World {
@@ -38,56 +38,57 @@ impl World {
         let height = canvas.scroll_height();
         World {
             canvas,
-            height,
-            width,
+            height: height.into(),
+            width: width.into(),
         }
     }
 }
 #[derive(Debug)]
 pub struct RainDrop {
-    radius: i32,
-    centre_x: i32,
-    centre_y: i32,
+    pub radius: f64,
+    pub centre_x: f64,
+    pub centre_y: f64,
 }
 impl RainDrop {
     pub fn new() -> RainDrop {
         RainDrop {
-            centre_y: 100,
-            centre_x: 100,
-            radius: 10,
+            centre_y: 100.0,
+            centre_x: 100.0,
+            radius: 10.0,
         }
     }
 }
 #[derive(Debug)]
 pub struct Bomb {
-    radius: i32,
-    centre_x: i32,
-    centre_y: i32,
+    radius: f64,
+    centre_x: f64,
+    centre_y: f64,
 }
 #[derive(Debug)]
 pub struct Bucket {
-    centre_x: i32,
-    centre_y: i32,
+    centre_x: f64,
+    centre_y: f64,
 }
 impl Bucket {
     pub fn new(world: &World) -> Bucket {
         Bucket {
             centre_y: world.height - BUCKET_HEIGHT,
-            centre_x: 20,
+            centre_x: 20.0,
         }
     }
 }
 pub trait Draw {
     fn draw(&self, world: &World);
+    fn move_to_point(&mut self, to_point: f64);
 }
 impl Draw for RainDrop {
     fn draw(&self, world: &World) {
         let context = get_canvas_context(&world);
         context
             .arc(
-                self.centre_x.into(),
-                self.centre_y.into(),
-                self.radius.into(),
+                self.centre_x,
+                self.centre_y,
+                self.radius,
                 0.0,
                 std::f64::consts::PI * 2.0,
             )
@@ -96,25 +97,28 @@ impl Draw for RainDrop {
         context.fill();
         // context.set_fill_style(2);
     }
+    fn move_to_point(&mut self, to_point: f64) {
+        self.centre_y = to_point;
+    }
 }
 impl Draw for Bucket {
     fn draw(&self, world: &World) {
         let context = get_canvas_context(&world);
-        context.move_to(self.centre_x.into(), self.centre_y.into());
+        context.move_to(self.centre_x.into(), self.centre_y);
+        context.line_to(self.centre_x + BUCKET_SLAND, self.centre_y + BUCKET_HEIGHT);
         context.line_to(
-            (self.centre_x + BUCKET_SLAND).into(),
-            (self.centre_y + BUCKET_HEIGHT).into(),
+            self.centre_x + BUCKET_SLAND + BUCKET_WIDTH,
+            self.centre_y + BUCKET_HEIGHT,
         );
         context.line_to(
-            (self.centre_x + BUCKET_SLAND + BUCKET_WIDTH).into(),
-            (self.centre_y + BUCKET_HEIGHT).into(),
-        );
-        context.line_to(
-            (self.centre_x + 2 * BUCKET_SLAND + BUCKET_WIDTH).into(),
-            self.centre_y.into(),
+            self.centre_x + 2.0 * BUCKET_SLAND + BUCKET_WIDTH,
+            self.centre_y,
         );
         context.set_fill_style(&Black.get_rgb().into());
         context.fill();
+    }
+    fn move_to_point(&mut self, to_point: f64) {
+        self.centre_x = to_point;
     }
 }
 fn get_canvas_context(world: &World) -> CanvasRenderingContext2d {
