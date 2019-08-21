@@ -29,6 +29,7 @@ pub fn main_js() -> Result<(), JsValue> {
     let bucket_clone_keydown = Rc::clone(&world.bucket);
     let bucket_clone_keyup = Rc::clone(&world.bucket);
     *closure_cell.borrow_mut() = Some(Closure::wrap(Box::new(move |x: f64| {
+        world.timer.set_time(x);
         web_sys::console::log_1(&x.into());
         // world.clear_canvas();
         world.add_new_drop();

@@ -42,7 +42,7 @@ pub struct World {
     pub bucket: Rc<RefCell<Bucket>>,
     height: f64,
     width: f64,
-    timer: Timer,
+    pub timer: Timer,
     // score: u32,
 }
 impl World {
@@ -127,7 +127,7 @@ impl World {
     }
     pub fn animation_cycle(&mut self) {
         self.clear_canvas();
-        let time_elapsed = self.timer.time_elapsed();
+        let time_elapsed = self.timer.time_elapsed;
         // web_sys::console::log_1(&(self.raindrops.len() as u32).into());
         for raindrop in self.raindrops.iter_mut() {
             raindrop.move_to_point(raindrop.centre_y + DROP_VELOCITY * time_elapsed);
@@ -228,19 +228,29 @@ impl Draw for Bucket {
 }
 #[derive(Debug)]
 pub struct Timer {
-    start_time: f64,
+    start_time: Option<f64>,
+    time_elapsed: f64,
 }
 impl Timer {
     pub fn new() -> Timer {
-        let start_time = web_sys::window().unwrap().performance().unwrap().now();
-        Timer { start_time }
+        // let start_time = web_sys::window().unwrap().performance().unwrap().now();
+        Timer {
+            start_time: None,
+            time_elapsed: 0.0,
+        }
     }
-    pub fn time_elapsed(&mut self) -> f64 {
-        let time_now = web_sys::window().unwrap().performance().unwrap().now();
-        let time_elapsed = (time_now - self.start_time) / 5.0;
-        self.start_time = time_now;
-        time_elapsed
+    pub fn set_time(&mut self, time: f64) {
+        if let Some(old_time) = self.start_time {
+            self.time_elapsed = (time - old_time) / 5.0;
+        }
+        self.start_time = Some(time);
     }
+    // pub fn get_time_elapsed(&mut self, time_now: f64) -> f64 {
+    //     // let time_now = web_sys::window().unwrap().performance().unwrap().now();
+    //     let time_elapsed = (time_now - self.start_time) / 5.0;
+    //     self.start_time = time_now;
+    //     time_elapsed
+    // }
 }
 fn limit_values(value: f64, min: f64, max: f64) -> f64 {
     // value.rem_euclid(max - min)
