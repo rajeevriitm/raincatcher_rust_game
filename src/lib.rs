@@ -7,10 +7,11 @@ use model::*;
 use wasm_bindgen::prelude::*;
 mod model;
 use model::{RainDrop, World};
+mod physics;
 #[cfg(feature = "wee_alloc")]
 #[global_allocator]
 static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
-
+//todo replace refcell with cell as bucket is copy
 #[wasm_bindgen(start)]
 pub fn main_js() -> Result<(), JsValue> {
     #[cfg(debug_assertions)]
@@ -30,11 +31,12 @@ pub fn main_js() -> Result<(), JsValue> {
     let bucket_clone_keyup = Rc::clone(&world.bucket);
     *closure_cell.borrow_mut() = Some(Closure::wrap(Box::new(move |x: f64| {
         world.timer.set_time(x);
-        web_sys::console::log_1(&x.into());
+        // web_sys::console::log_1(&x.into());
         // world.clear_canvas();
         world.add_new_drop();
         world.check_collision();
         world.animation_cycle();
+        world.show_score();
         // bucket.borrow().draw(&world.canvas);
         // drop.move_to_point(drop.centre_y + DROP_VELOCITY * (timer.time_elapsed()));
         // drop.draw(&world.canvas);

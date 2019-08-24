@@ -1,4 +1,4 @@
-#![feature(euclidean_division)]
+use crate::physics::*;
 use std::cell::RefCell;
 use std::rc::Rc;
 use wasm_bindgen::JsCast;
@@ -19,21 +19,6 @@ pub enum Direction {
     Left = -1,
     None = 0,
 }
-#[derive(Debug)]
-enum Color {
-    Black,
-    White,
-    Red,
-}
-impl Color {
-    fn get_rgb(&self) -> &'static str {
-        match self {
-            Color::Black => "rgb(0,0,0)",
-            Color::Red => "rgb(240, 10, 10)",
-            Color::White => "rgb(0,0,0,1)",
-        }
-    }
-}
 
 #[derive(Debug)]
 pub struct World {
@@ -43,7 +28,7 @@ pub struct World {
     height: f64,
     width: f64,
     pub timer: Timer,
-    // score: u32,
+    score: u32,
 }
 impl World {
     pub fn new(selector: &str) -> World {
@@ -61,6 +46,7 @@ impl World {
             .unwrap()
             .dyn_into::<CanvasRenderingContext2d>()
             .unwrap();
+        canvas.set_font("30px Arial");
         let bucket = Bucket::new(height as f64 - BUCKET_HEIGHT);
         let bucket = Rc::new(RefCell::new(bucket));
         World {
@@ -70,6 +56,7 @@ impl World {
             raindrops: vec![],
             timer: Timer::new(),
             bucket,
+            score: 0,
         }
     }
     pub fn clear_canvas(&self) {
@@ -107,18 +94,54 @@ impl World {
         }
     }
     pub fn check_collision(&mut self) {
+        web_sys::console::log_1(&(self.raindrops.len() as u32).into());
+
         if let Some(raindrop) = self.raindrops.first() {
             let y = raindrop.centre_y;
             let x = raindrop.centre_x;
-            if y > self.height - BUCKET_HEIGHT {
-                let bucket_x = self.bucket.borrow().centre_x;
-                if x > bucket_x && x < bucket_x + BUCKET_WIDTH {
-                    self.raindrops.remove(0);
-                } else if y > self.height - BUCKET_HEIGHT / 2.0 {
-                    //lost
+            let bucket_x = self.bucket.borrow().centre_x;
+            let drop_is_bomb = raindrop.bomb;
+            let catch_condition = y > (self.height - raindrop.radius - BUCKET_HEIGHT)
+                && y < (self.height - BUCKET_HEIGHT / 2.0)
+                && x > bucket_x
+                && x < bucket_x + BUCKET_WIDTH;
+            if catch_condition {
+                if drop_is_bomb {
+                    self.lose_life();
+                } else {
+                    self.legal_catch();
                 }
+                self.raindrops.remove(0);
+            }
+            if y > (self.height) {
+                if !drop_is_bomb {
+                    self.lose_life();
+                }
+                self.raindrops.remove(0);
             }
         }
+    }
+    fn legal_catch(&mut self) {
+        self.score += 1;
+    }
+    fn lose_life(&self) {
+        // for _ in 0..10000 {
+        self.canvas.set_fill_style(&"red".into());
+        self.canvas.fill_rect(0.0, 0.0, self.width, self.height);
+        // }
+        // self.raindrops.remove(0);
+    }
+    // pub fn update_score(&mut self) {
+    //     self.score += 1;
+    //     self.canvas.set_font("30px Arial");
+    //     self.canvas.fill_text(&self.score.to_string(), 10.0, 10.0);
+    // }
+    pub fn show_score(&mut self) {
+        // self.score += 1;
+        // self.canvas.set_font("30px Arial");
+        self.canvas.set_fill_style(&Black.get_rgb().into());
+        self.canvas
+            .fill_text(&self.score.to_string(), self.width - 40.0, 35.0);
     }
     fn get_random_distance(&self) -> f64 {
         let value = js_sys::Math::random() * (DROP_DISTANCE / DROP_VELOCITY) * BUCKET_SPEED;
@@ -148,6 +171,7 @@ pub struct RainDrop {
     pub radius: f64,
     pub centre_x: f64,
     pub centre_y: f64,
+    bomb: bool,
 }
 impl RainDrop {
     pub fn new(x: f64) -> RainDrop {
@@ -155,14 +179,9 @@ impl RainDrop {
             centre_y: -10.0,
             centre_x: x,
             radius: 10.0,
+            bomb: js_sys::Math::random() > 0.8,
         }
     }
-}
-#[derive(Debug)]
-pub struct Bomb {
-    radius: f64,
-    centre_x: f64,
-    centre_y: f64,
 }
 #[derive(Debug)]
 pub struct Bucket {
@@ -198,7 +217,8 @@ impl Draw for RainDrop {
                 std::f64::consts::PI * 2.0,
             )
             .unwrap();
-        htmlCanvas.set_fill_style(&Black.get_rgb().into());
+        let color = if self.bomb { Red } else { Blue };
+        htmlCanvas.set_fill_style(&color.get_rgb().into());
         htmlCanvas.fill();
         // context.set_fill_style(2);
     }
@@ -219,38 +239,12 @@ impl Draw for Bucket {
             self.centre_x + 2.0 * BUCKET_SLAND + BUCKET_BOTTOM_WIDTH,
             self.centre_y,
         );
-        htmlCanvas.set_fill_style(&Black.get_rgb().into());
+        htmlCanvas.set_fill_style(&Brown.get_rgb().into());
         htmlCanvas.fill();
     }
     fn move_to_point(&mut self, to_point: f64) {
         self.centre_x = to_point;
     }
-}
-#[derive(Debug)]
-pub struct Timer {
-    start_time: Option<f64>,
-    time_elapsed: f64,
-}
-impl Timer {
-    pub fn new() -> Timer {
-        // let start_time = web_sys::window().unwrap().performance().unwrap().now();
-        Timer {
-            start_time: None,
-            time_elapsed: 0.0,
-        }
-    }
-    pub fn set_time(&mut self, time: f64) {
-        if let Some(old_time) = self.start_time {
-            self.time_elapsed = (time - old_time) / 5.0;
-        }
-        self.start_time = Some(time);
-    }
-    // pub fn get_time_elapsed(&mut self, time_now: f64) -> f64 {
-    //     // let time_now = web_sys::window().unwrap().performance().unwrap().now();
-    //     let time_elapsed = (time_now - self.start_time) / 5.0;
-    //     self.start_time = time_now;
-    //     time_elapsed
-    // }
 }
 fn limit_values(value: f64, min: f64, max: f64) -> f64 {
     // value.rem_euclid(max - min)
