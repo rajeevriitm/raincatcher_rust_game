@@ -1,13 +1,19 @@
-#[derive(Debug)]
-struct AnimateClosure<T: FnMut(f64)> {
+pub struct AnimateClosure {
     duartion: u32,
-    closure: T,
+    closure: Box<dyn Fn(f64)>,
     timer: Timer,
 }
-impl<T: FnMut(f64)> AnimateClosure<T> {
-    fn execute(&mut self) {
+impl<'a> AnimateClosure {
+    pub fn execute(&mut self) {
         let time_elapsed = self.timer.time_elapsed;
         (self.closure)(time_elapsed);
+    }
+    pub fn new(duartion: u32, closure: Box<dyn Fn(f64)>) -> AnimateClosure {
+        AnimateClosure {
+            duartion,
+            closure,
+            timer: Timer::new(),
+        }
     }
 }
 #[derive(Debug)]
@@ -43,10 +49,10 @@ pub enum Color {
 impl Color {
     pub fn get_rgb(&self) -> &'static str {
         match self {
-            Blue => "rgb(0,119,190)",
-            Black => "rgb(21,21,60)",
-            Brown => "rgb(140,52,52)",
-            Red => "rgb(168,0,0)",
+            Color::Black => "rgb(21,21,60)",
+            Color::Blue => "rgb(0,119,190)",
+            Color::Brown => "rgb(140,52,52)",
+            Color::Red => "rgb(168,0,0)",
         }
     }
 }

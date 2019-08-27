@@ -20,7 +20,6 @@ pub enum Direction {
     None = 0,
 }
 
-#[derive(Debug)]
 pub struct World {
     pub canvas: CanvasRenderingContext2d,
     raindrops: Vec<RainDrop>,
@@ -29,6 +28,7 @@ pub struct World {
     width: f64,
     pub timer: Timer,
     score: u32,
+    animations: Vec<AnimateClosure>,
 }
 impl World {
     pub fn new(selector: &str) -> World {
@@ -57,6 +57,7 @@ impl World {
             timer: Timer::new(),
             bucket,
             score: 0,
+            animations: vec![],
         }
     }
     pub fn clear_canvas(&self) {
@@ -124,24 +125,22 @@ impl World {
     fn legal_catch(&mut self) {
         self.score += 1;
     }
-    fn lose_life(&self) {
-        // for _ in 0..10000 {
-        self.canvas.set_fill_style(&"red".into());
-        self.canvas.fill_rect(0.0, 0.0, self.width, self.height);
-        // }
-        // self.raindrops.remove(0);
+    fn lose_life(&mut self) {
+        let canvas = self.canvas.clone();
+        let width = self.width;
+        let height = self.height;
+        let closure = move |x: f64| {
+            canvas.set_fill_style(&"red".into());
+            canvas.fill_rect(0.0, 0.0, width, height);
+        };
+        let animation = AnimateClosure::new(10, Box::new(closure) as Box<dyn Fn(f64)>);
+        self.animations.push(animation);
     }
-    // pub fn update_score(&mut self) {
-    //     self.score += 1;
-    //     self.canvas.set_font("30px Arial");
-    //     self.canvas.fill_text(&self.score.to_string(), 10.0, 10.0);
-    // }
     pub fn show_score(&mut self) {
-        // self.score += 1;
-        // self.canvas.set_font("30px Arial");
         self.canvas.set_fill_style(&Black.get_rgb().into());
         self.canvas
-            .fill_text(&self.score.to_string(), self.width - 40.0, 35.0);
+            .fill_text(&self.score.to_string(), self.width - 40.0, 35.0)
+            .unwrap();
     }
     fn get_random_distance(&self) -> f64 {
         let value = js_sys::Math::random() * (DROP_DISTANCE / DROP_VELOCITY) * BUCKET_SPEED;
@@ -164,6 +163,9 @@ impl World {
         );
         bucket.move_to_point(to_point);
         bucket.draw(&self.canvas);
+        for animation in self.animations.iter_mut() {
+            animation.execute();
+        }
     }
 }
 #[derive(Debug)]
@@ -202,13 +204,13 @@ impl Bucket {
     }
 }
 pub trait Draw {
-    fn draw(&self, htmlCanvas: &CanvasRenderingContext2d);
+    fn draw(&self, html_canvas: &CanvasRenderingContext2d);
     fn move_to_point(&mut self, to_point: f64);
 }
 impl Draw for RainDrop {
-    fn draw(&self, htmlCanvas: &CanvasRenderingContext2d) {
-        htmlCanvas.begin_path();
-        htmlCanvas
+    fn draw(&self, html_canvas: &CanvasRenderingContext2d) {
+        html_canvas.begin_path();
+        html_canvas
             .arc(
                 self.centre_x,
                 self.centre_y,
@@ -218,8 +220,8 @@ impl Draw for RainDrop {
             )
             .unwrap();
         let color = if self.bomb { Red } else { Blue };
-        htmlCanvas.set_fill_style(&color.get_rgb().into());
-        htmlCanvas.fill();
+        html_canvas.set_fill_style(&color.get_rgb().into());
+        html_canvas.fill();
         // context.set_fill_style(2);
     }
     fn move_to_point(&mut self, to_point: f64) {
@@ -227,20 +229,20 @@ impl Draw for RainDrop {
     }
 }
 impl Draw for Bucket {
-    fn draw(&self, htmlCanvas: &CanvasRenderingContext2d) {
-        htmlCanvas.begin_path();
-        htmlCanvas.move_to(self.centre_x.into(), self.centre_y);
-        htmlCanvas.line_to(self.centre_x + BUCKET_SLAND, self.centre_y + BUCKET_HEIGHT);
-        htmlCanvas.line_to(
+    fn draw(&self, html_canvas: &CanvasRenderingContext2d) {
+        html_canvas.begin_path();
+        html_canvas.move_to(self.centre_x.into(), self.centre_y);
+        html_canvas.line_to(self.centre_x + BUCKET_SLAND, self.centre_y + BUCKET_HEIGHT);
+        html_canvas.line_to(
             self.centre_x + BUCKET_SLAND + BUCKET_BOTTOM_WIDTH,
             self.centre_y + BUCKET_HEIGHT,
         );
-        htmlCanvas.line_to(
+        html_canvas.line_to(
             self.centre_x + 2.0 * BUCKET_SLAND + BUCKET_BOTTOM_WIDTH,
             self.centre_y,
         );
-        htmlCanvas.set_fill_style(&Brown.get_rgb().into());
-        htmlCanvas.fill();
+        html_canvas.set_fill_style(&Brown.get_rgb().into());
+        html_canvas.fill();
     }
     fn move_to_point(&mut self, to_point: f64) {
         self.centre_x = to_point;
