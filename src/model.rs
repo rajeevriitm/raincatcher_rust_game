@@ -95,8 +95,6 @@ impl World {
         }
     }
     pub fn check_collision(&mut self) {
-        web_sys::console::log_1(&(self.raindrops.len() as u32).into());
-
         if let Some(raindrop) = self.raindrops.first() {
             let y = raindrop.centre_y;
             let x = raindrop.centre_x;
@@ -126,14 +124,17 @@ impl World {
         self.score += 1;
     }
     fn lose_life(&mut self) {
-        let canvas = self.canvas.clone();
+        // let canvas = &self.canvas;
         let width = self.width;
         let height = self.height;
-        let closure = move |x: f64| {
+        let closure = move |x: f64, canvas: &CanvasRenderingContext2d| {
             canvas.set_fill_style(&"red".into());
             canvas.fill_rect(0.0, 0.0, width, height);
         };
-        let animation = AnimateClosure::new(10, Box::new(closure) as Box<dyn Fn(f64)>);
+        let animation = AnimateClosure::new(
+            10.0,
+            Box::new(closure) as Box<dyn Fn(f64, &CanvasRenderingContext2d)>,
+        );
         self.animations.push(animation);
     }
     pub fn show_score(&mut self) {
@@ -147,8 +148,9 @@ impl World {
         // web_sys::console::log_1(&value.into());
         f64::min(self.width, value)
     }
-    pub fn animation_cycle(&mut self) {
+    pub fn animation_cycle(&mut self, time: f64) {
         self.clear_canvas();
+        self.timer.set_time(time);
         let time_elapsed = self.timer.time_elapsed;
         // web_sys::console::log_1(&(self.raindrops.len() as u32).into());
         for raindrop in self.raindrops.iter_mut() {
@@ -164,7 +166,8 @@ impl World {
         bucket.move_to_point(to_point);
         bucket.draw(&self.canvas);
         for animation in self.animations.iter_mut() {
-            animation.execute();
+            animation.timer.set_time(time);
+            animation.execute(&self.canvas);
         }
     }
 }

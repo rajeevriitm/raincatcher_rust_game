@@ -1,4 +1,5 @@
 // use crate::model::Draw;
+// use js_sys::Array;
 use std::cell::RefCell;
 use std::rc::Rc;
 use wasm_bindgen::JsCast;
@@ -30,12 +31,10 @@ pub fn main_js() -> Result<(), JsValue> {
     let bucket_clone_keydown = Rc::clone(&world.bucket);
     let bucket_clone_keyup = Rc::clone(&world.bucket);
     *closure_cell.borrow_mut() = Some(Closure::wrap(Box::new(move |x: f64| {
-        world.timer.set_time(x);
-        // web_sys::console::log_1(&x.into());
         // world.clear_canvas();
         world.add_new_drop();
         world.check_collision();
-        world.animation_cycle();
+        world.animation_cycle(x);
         world.show_score();
         // bucket.borrow().draw(&world.canvas);
         // drop.move_to_point(drop.centre_y + DROP_VELOCITY * (timer.time_elapsed()));
@@ -87,4 +86,7 @@ fn request_keyup_event(f: &Closure<dyn FnMut(web_sys::KeyboardEvent)>) {
         .document()
         .unwrap()
         .set_onkeyup(Some(f.as_ref().unchecked_ref()))
+}
+fn log(arg: &JsValue) {
+    web_sys::console::log_1(arg);
 }

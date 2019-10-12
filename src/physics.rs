@@ -1,14 +1,21 @@
+use web_sys::CanvasRenderingContext2d;
+
 pub struct AnimateClosure {
-    duartion: u32,
-    closure: Box<dyn Fn(f64)>,
-    timer: Timer,
+    duartion: f64,
+    closure: Box<dyn Fn(f64, &CanvasRenderingContext2d)>,
+    pub timer: Timer,
 }
-impl<'a> AnimateClosure {
-    pub fn execute(&mut self) {
+impl AnimateClosure {
+    pub fn execute(&mut self, canvas: &CanvasRenderingContext2d) {
         let time_elapsed = self.timer.time_elapsed;
-        (self.closure)(time_elapsed);
+        crate::log(&time_elapsed.into());
+
+        (self.closure)(time_elapsed, canvas);
     }
-    pub fn new(duartion: u32, closure: Box<dyn Fn(f64)>) -> AnimateClosure {
+    pub fn new(
+        duartion: f64,
+        closure: Box<dyn Fn(f64, &CanvasRenderingContext2d)>,
+    ) -> AnimateClosure {
         AnimateClosure {
             duartion,
             closure,
