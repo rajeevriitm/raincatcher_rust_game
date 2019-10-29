@@ -1,3 +1,6 @@
+// #[macro_use]
+// extern crate lazy_static;
+
 // use crate::model::Draw;
 // use js_sys::Array;
 use std::cell::RefCell;

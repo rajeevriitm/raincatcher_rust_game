@@ -2,17 +2,23 @@ use crate::physics::*;
 use std::cell::RefCell;
 use std::rc::Rc;
 use wasm_bindgen::JsCast;
-use web_sys::{CanvasRenderingContext2d, HtmlCanvasElement};
+use wasm_bindgen::JsValue;
+// use web_sys::HtmlImageElement;
+use web_sys::{CanvasRenderingContext2d, Element, HtmlCanvasElement};
 use Color::*;
 const BUCKET_HEIGHT: f64 = 30.0;
 const BUCKET_BOTTOM_WIDTH: f64 = 30.0;
 const BUCKET_SLAND: f64 = 15.0;
-pub const DROP_VELOCITY: f64 = 0.8;
+pub const DROP_VELOCITY: f64 = 0.8 / 5.0;
 const DROP_DISTANCE: f64 = 80.0;
-pub const BUCKET_SPEED: f64 = 2.5;
+pub const BUCKET_SPEED: f64 = 2.5 / 5.0;
 const DROP_INDENT: f64 = 5.0;
 const BUCKET_WIDTH: f64 = BUCKET_BOTTOM_WIDTH + 2.0 * BUCKET_SLAND;
-
+const LOOSE_LIFE_DURATION: f64 = 75.0;
+const LIFE_COUNT: u32 = 5;
+// lazy_static! {
+//     static ref HTML_IMAGE: Result<HtmlImageElement, JsValue> = web_sys::HtmlImageElement::new();
+// }
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Direction {
     Right = 1,
@@ -29,6 +35,7 @@ pub struct World {
     pub timer: Timer,
     score: u32,
     animations: Vec<AnimateClosure>,
+    life: Life,
 }
 impl World {
     pub fn new(selector: &str) -> World {
@@ -49,6 +56,13 @@ impl World {
         canvas.set_font("30px Arial");
         let bucket = Bucket::new(height as f64 - BUCKET_HEIGHT);
         let bucket = Rc::new(RefCell::new(bucket));
+        // let image = HtmlImageElement::new().unwrap();
+        // image.set_src("heart1.png");
+        let life_node = document.get_element_by_id("life").unwrap();
+        let life = Life {
+            count: LIFE_COUNT,
+            life_node,
+        };
         World {
             canvas,
             height: height.into(),
@@ -58,6 +72,7 @@ impl World {
             bucket,
             score: 0,
             animations: vec![],
+            life,
         }
     }
     pub fn clear_canvas(&self) {
@@ -128,14 +143,20 @@ impl World {
         let width = self.width;
         let height = self.height;
         let closure = move |x: f64, canvas: &CanvasRenderingContext2d| {
-            canvas.set_fill_style(&"red".into());
+            let rgba = format!("rgba(225,0,0,{})", x / LOOSE_LIFE_DURATION);
+            canvas.set_fill_style(&rgba.into());
             canvas.fill_rect(0.0, 0.0, width, height);
         };
         let animation = AnimateClosure::new(
-            10.0,
+            LOOSE_LIFE_DURATION,
             Box::new(closure) as Box<dyn Fn(f64, &CanvasRenderingContext2d)>,
         );
         self.animations.push(animation);
+        self.life.remove_life();
+        if self.life.count == 0 {
+            // self.reset_game();
+            self.life.reset_life();
+        }
     }
     pub fn show_score(&mut self) {
         self.canvas.set_fill_style(&Black.get_rgb().into());
@@ -165,10 +186,18 @@ impl World {
         );
         bucket.move_to_point(to_point);
         bucket.draw(&self.canvas);
+        // crate::log(&(self.animations.len() as u32).into());
+        // web_sys::console::log_1(&(self.animations.len() as u32).into());
+        self.animations.retain(|animation| animation.duration > 0.0);
+        // crate::log(&(self.animations.len() as u32).into());
         for animation in self.animations.iter_mut() {
             animation.timer.set_time(time);
             animation.execute(&self.canvas);
         }
+    }
+    fn reset_game(&mut self) {
+        self.raindrops = vec![];
+        self.score = 0;
     }
 }
 #[derive(Debug)]
@@ -249,6 +278,27 @@ impl Draw for Bucket {
     }
     fn move_to_point(&mut self, to_point: f64) {
         self.centre_x = to_point;
+    }
+}
+#[derive(Debug)]
+struct Life {
+    count: u32,
+    life_node: Element,
+}
+impl Life {
+    fn remove_life(&mut self) {
+        self.set_class("lost-life", self.count - 1);
+        self.count -= 1;
+    }
+    fn reset_life(&mut self) {
+        for index in 0..LIFE_COUNT {
+            self.set_class("win-life", index)
+        }
+        self.count = LIFE_COUNT;
+    }
+    fn set_class(&self, class_name: &str, index: u32) {
+        let element = self.life_node.children().get_with_index(index).unwrap();
+        element.set_class_name(class_name);
     }
 }
 fn limit_values(value: f64, min: f64, max: f64) -> f64 {

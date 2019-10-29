@@ -1,23 +1,23 @@
 use web_sys::CanvasRenderingContext2d;
 
 pub struct AnimateClosure {
-    duartion: f64,
+    pub duration: f64,
     closure: Box<dyn Fn(f64, &CanvasRenderingContext2d)>,
     pub timer: Timer,
 }
 impl AnimateClosure {
     pub fn execute(&mut self, canvas: &CanvasRenderingContext2d) {
         let time_elapsed = self.timer.time_elapsed;
-        crate::log(&time_elapsed.into());
-
-        (self.closure)(time_elapsed, canvas);
+        // crate::log(&time_elapsed.into());
+        self.duration -= time_elapsed;
+        (self.closure)(self.duration, canvas);
     }
     pub fn new(
-        duartion: f64,
+        duration: f64,
         closure: Box<dyn Fn(f64, &CanvasRenderingContext2d)>,
     ) -> AnimateClosure {
         AnimateClosure {
-            duartion,
+            duration,
             closure,
             timer: Timer::new(),
         }
@@ -40,7 +40,7 @@ impl Timer {
     }
     pub fn set_time(&mut self, time: f64) {
         if let Some(old_time) = self.start_time {
-            self.time_elapsed = (time - old_time) / 5.0;
+            self.time_elapsed = time - old_time;
         }
         self.start_time = Some(time);
         self.ticks += 1;
