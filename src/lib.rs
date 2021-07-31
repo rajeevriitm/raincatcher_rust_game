@@ -1,21 +1,18 @@
-// #[macro_use]
-// extern crate lazy_static;
-
-// use crate::model::Draw;
-// use js_sys::Array;
+//todo replace refcell with cell as bucket is copy
 use std::cell::RefCell;
 use std::rc::Rc;
-use wasm_bindgen::JsCast;
-
-use model::*;
 use wasm_bindgen::prelude::*;
+use wasm_bindgen::JsCast;
 mod model;
-use model::{RainDrop, World};
+use model::{Direction, State, World};
 mod physics;
+#[wasm_bindgen]
+// extern "C" {
+//     fn openModal();
+// }
 #[cfg(feature = "wee_alloc")]
 #[global_allocator]
 static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
-//todo replace refcell with cell as bucket is copy
 #[wasm_bindgen(start)]
 pub fn main_js() -> Result<(), JsValue> {
     #[cfg(debug_assertions)]
@@ -35,8 +32,10 @@ pub fn main_js() -> Result<(), JsValue> {
     let bucket_clone_keyup = Rc::clone(&world.bucket);
     *closure_cell.borrow_mut() = Some(Closure::wrap(Box::new(move |x: f64| {
         // world.clear_canvas();
-        world.add_new_drop();
-        world.check_collision();
+        if world.state == State::Active {
+            world.add_new_drop();
+            world.check_collision();
+        }
         world.animation_cycle(x);
         world.show_score();
         // bucket.borrow().draw(&world.canvas);
@@ -67,7 +66,6 @@ pub fn main_js() -> Result<(), JsValue> {
     request_keyup_event(&keyup_closure);
     keydown_closure.forget();
     keyup_closure.forget();
-
     Ok(())
 }
 fn request_animation_frame(f: &Closure<dyn FnMut(f64)>) {
@@ -90,6 +88,6 @@ fn request_keyup_event(f: &Closure<dyn FnMut(web_sys::KeyboardEvent)>) {
         .unwrap()
         .set_onkeyup(Some(f.as_ref().unchecked_ref()))
 }
-fn log(arg: &JsValue) {
-    web_sys::console::log_1(arg);
-}
+// fn log(arg: &JsValue) {
+//     web_sys::console::log_1(arg);
+// }

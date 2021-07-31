@@ -20,24 +20,36 @@
 */      }
       #life{
         position: absolute;
-        top: 0;
-        left: 0;
+        top: calc(50% - 225px);
+        left: calc(50% - 195px);
         width: 250px;
         height: 51px;
       }
+      #life  div{
+          float: left;
+          margin-right: 5px;
+        }
       .lost-life{
         visibility: hidden;
       }
       .win-life{
         visibility: visible;
       }
-    </style>
+      .header{
+        height: 30px;
+        font-size: 25px;
+        font-weight: 600;
+        color: green;
+        padding-bottom: 10px;
+      }
+ </style>
 
     <meta charset="UTF-8">
-    <title>My Rust + Webpack project!</title>
+    <title>Rain Catcher</title>
   </head>
   <body>
-    <div id="life">
+  <div class="header">The Rain Catcher</div>
+  <div id="life">
       <div class="life-img"><img src="heart1.png"></div>
       <div class="life-img"><img src="heart1.png"></div>
       <div class="life-img"><img src="heart1.png"></div>
@@ -46,5 +58,5 @@
     </div>
     <canvas id="game-of-drops" width="400" height="500"></canvas>
     <script src="index.js"></script>
-  </body>
+ </body>
 </html>
