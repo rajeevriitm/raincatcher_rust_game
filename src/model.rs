@@ -2,9 +2,9 @@ use crate::physics::*;
 use std::cell::RefCell;
 use std::rc::Rc;
 use wasm_bindgen::JsCast;
-use wasm_bindgen::JsValue;
+// use wasm_bindgen::JsValue;
 // use web_sys::HtmlImageElement;
-use web_sys::{CanvasRenderingContext2d, Element, HtmlCanvasElement};
+use web_sys::{CanvasRenderingContext2d, Element};
 use Color::*;
 const BUCKET_HEIGHT: f64 = 30.0;
 const BUCKET_BOTTOM_WIDTH: f64 = 30.0;
@@ -12,13 +12,11 @@ const BUCKET_SLAND: f64 = 15.0;
 pub const DROP_VELOCITY: f64 = 0.8 / 5.0;
 const DROP_DISTANCE: f64 = 80.0;
 pub const BUCKET_SPEED: f64 = 2.5 / 5.0;
-const DROP_INDENT: f64 = 5.0;
+// const DROP_INDENT: f64 = 5.0;
 const BUCKET_WIDTH: f64 = BUCKET_BOTTOM_WIDTH + 2.0 * BUCKET_SLAND;
 const LOOSE_LIFE_DURATION: f64 = 75.0;
 const LIFE_COUNT: u32 = 5;
-// lazy_static! {
-//     static ref HTML_IMAGE: Result<HtmlImageElement, JsValue> = web_sys::HtmlImageElement::new();
-// }
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Direction {
     Right = 1,
@@ -36,6 +34,9 @@ pub struct World {
     score: u32,
     animations: Vec<AnimateClosure>,
     life: Life,
+    pub state: State,
+    highscore: u32,
+    sound: Sound,
 }
 impl World {
     pub fn new(selector: &str) -> World {
@@ -53,7 +54,8 @@ impl World {
             .unwrap()
             .dyn_into::<CanvasRenderingContext2d>()
             .unwrap();
-        canvas.set_font("30px Arial");
+        canvas.set_font("15px Arial");
+        canvas.set_text_align("right");
         let bucket = Bucket::new(height as f64 - BUCKET_HEIGHT);
         let bucket = Rc::new(RefCell::new(bucket));
         // let image = HtmlImageElement::new().unwrap();
@@ -63,6 +65,9 @@ impl World {
             count: LIFE_COUNT,
             life_node,
         };
+        let dropped = web_sys::HtmlAudioElement::new_with_src("dropped.mp3").unwrap();
+        let end = web_sys::HtmlAudioElement::new_with_src("end.mp3").unwrap();
+        let sound = Sound { dropped, end };
         World {
             canvas,
             height: height.into(),
@@ -73,6 +78,9 @@ impl World {
             score: 0,
             animations: vec![],
             life,
+            state: State::Active,
+            highscore: 0,
+            sound,
         }
     }
     pub fn clear_canvas(&self) {
@@ -133,13 +141,26 @@ impl World {
                 }
                 self.raindrops.remove(0);
             }
+            if self.life.count == 0 {
+                self.lost_all_lives();
+            }
         }
+    }
+    fn lost_all_lives(&mut self) {
+        self.sound.end.play().unwrap();
+        self.state = State::End;
+        self.raindrops = vec![];
+        if self.score > self.highscore {
+            self.highscore = self.score;
+        }
+        self.reset_game();
     }
     fn legal_catch(&mut self) {
         self.score += 1;
     }
     fn lose_life(&mut self) {
         // let canvas = &self.canvas;
+        self.sound.dropped.play().unwrap();
         let width = self.width;
         let height = self.height;
         let closure = move |x: f64, canvas: &CanvasRenderingContext2d| {
@@ -153,16 +174,18 @@ impl World {
         );
         self.animations.push(animation);
         self.life.remove_life();
-        if self.life.count == 0 {
-            // self.reset_game();
-            self.life.reset_life();
-        }
     }
     pub fn show_score(&mut self) {
         self.canvas.set_fill_style(&Black.get_rgb().into());
+        let score = format!("score: {}", self.score.to_string(),);
+        let highscore = format!("highscore: {}", self.highscore.to_string());
         self.canvas
-            .fill_text(&self.score.to_string(), self.width - 40.0, 35.0)
+            .fill_text(&score, self.width - 5.0, 15.0)
             .unwrap();
+        self.canvas
+            .fill_text(&highscore, self.width - 5.0, 30.0)
+            .unwrap();
+        // crate::log(&score.into());
     }
     fn get_random_distance(&self) -> f64 {
         let value = js_sys::Math::random() * (DROP_DISTANCE / DROP_VELOCITY) * BUCKET_SPEED;
@@ -196,8 +219,9 @@ impl World {
         }
     }
     fn reset_game(&mut self) {
-        self.raindrops = vec![];
+        self.life.reset_life();
         self.score = 0;
+        self.state = State::Active;
     }
 }
 #[derive(Debug)]
@@ -300,6 +324,16 @@ impl Life {
         let element = self.life_node.children().get_with_index(index).unwrap();
         element.set_class_name(class_name);
     }
+}
+#[derive(Debug, PartialEq)]
+pub enum State {
+    Active,
+    End,
+}
+#[derive(Debug)]
+struct Sound {
+    dropped: web_sys::HtmlAudioElement,
+    end: web_sys::HtmlAudioElement,
 }
 fn limit_values(value: f64, min: f64, max: f64) -> f64 {
     // value.rem_euclid(max - min)
